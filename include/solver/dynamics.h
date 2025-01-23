@@ -166,8 +166,25 @@ public:
         density(new T[mesh->num_elements * num_quadrature_pts]),
         timestep(0),
         time(0.0)
-  {
+  { 
+
+    // set to zero
     ndof = mesh->num_nodes * dof_per_node;
+    memset(vel, 0, sizeof(T) * ndof);
+    memset(vel_i, 0, sizeof(T) * ndof);
+    memset(global_stress_quads, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts * 6);
+    memset(global_plastic_strain_quads, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts * 6);
+    memset(eqPlasticStrain, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(pressure, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(plasticStrainRate, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(gamma, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(gamma_accumulated, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(yieldStress, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(plasticWork, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(internalEnergy, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(inelastic_energy, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(temperature, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(density, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
   }
 
   /**

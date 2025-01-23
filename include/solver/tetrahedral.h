@@ -708,7 +708,7 @@ class TetrahedralBasisLinear {
     F[0] += 1.0;
     F[4] += 1.0;
     F[8] += 1.0;
-    printf("F = %f %f %f %f %f %f %f %f %f\n", F[0], F[1], F[2], F[3], F[4],
-           F[5], F[6], F[7], F[8]);
+    // printf("F = %f %f %f %f %f %f %f %f %f\n", F[0], F[1], F[2], F[3], F[4],
+    //        F[5], F[6], F[7], F[8]);
   }
 };

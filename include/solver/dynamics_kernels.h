@@ -191,6 +191,7 @@ void update(int num_nodes, int num_elements, int ndof, T dt, Material *material,
         Mr_inv[k] = 1.0 / element_mass_matrix_diagonals[k];
       }
 
+      std::cout << "element: " << i << "\n";
       // Compute internal (element) forces based on current configuration
       material->calculate_f_internal(
           element_xloc.data(), element_dof.data(), element_old_stress,

@@ -171,6 +171,7 @@ public:
     // set to zero
     ndof = mesh->num_nodes * dof_per_node;
     memset(vel, 0, sizeof(T) * ndof);
+    memset(global_acc, 0, sizeof(T) * ndof);
     memset(vel_i, 0, sizeof(T) * ndof);
     memset(global_stress_quads, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts * 6);
     memset(global_plastic_strain_quads, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts * 6);
@@ -185,6 +186,7 @@ public:
     memset(inelastic_energy, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
     memset(temperature, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
     memset(density, 0, sizeof(T) * mesh->num_elements * num_quadrature_pts);
+    memset(global_mass, 0, sizeof(T) * ndof);
   }
 
   /**
@@ -240,7 +242,12 @@ public:
       mesh->xloc[3 * i] += init_position[0];
       mesh->xloc[3 * i + 1] += init_position[1];
       mesh->xloc[3 * i + 2] += init_position[2];
+
+
+      
     }
+
+   
   }
 
   /**
@@ -303,6 +310,7 @@ public:
 
       vtkFile << std::fixed << std::setprecision(6);
       vtkFile << x << " " << y << " " << z << "\n";
+      //std::cout <<  global_xloc[3 * i] << " " << global_xloc[3 * i+1] << " " <<  global_xloc[3 * i+2] << "\n";
     }
 
     // Write element connectivity
@@ -639,6 +647,11 @@ public:
       global_acc[i] = 0.0;
       global_mass[i] = 0.0;
     }
+
+    // export_to_vtk(0, vel, global_acc, global_mass);
+    // int a;
+    // std::cin >> a;
+
     memset(global_stress_quads, 0,
            sizeof(T) * 6 * mesh->num_elements * num_quadrature_pts);
     memset(global_plastic_strain_quads, 0,

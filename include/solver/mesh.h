@@ -210,6 +210,7 @@ class Mesh {
       x[3 * (node.index - 1)] = node.x;
       x[3 * (node.index - 1) + 1] = node.y;
       x[3 * (node.index - 1) + 2] = node.z;
+
     }
 
     // Count the total number of indices across all node sets

@@ -613,12 +613,18 @@ private:
       memset(J, 0, spatial_dim * spatial_dim * sizeof(T));
       Basis::template eval_grad<spatial_dim>(pt, element_xloc, J);
 
+
+      for (int i = 0; i < 12; i++)
+        std::cout << "_ "<< element_xloc[i];
+      std::cout << "\n";  
       // standard basis here
       // Compute the inverse and determinant of the Jacobian matrix
       T Jinv[spatial_dim * spatial_dim];
       memset(Jinv, 0, spatial_dim * spatial_dim * sizeof(T));
       T detJ = inv3x3(J, Jinv);
-
+      
+      //std::cin >> detJ;
+      
       T F[spatial_dim * spatial_dim];
       memset(F, 0, sizeof(T) * 9);
       Basis::template calculate_def_grad<Quadrature>(pt, Jinv, element_dof, F);
@@ -629,13 +635,15 @@ private:
       memset(HenkyStrain, 0, sizeof(T) * 6);
       cppimpact_PD_JC(F, R, HenkyStrain);
 
+      //printf("\n Henky Strain: %f %f %f %f %f %f", HenkyStrain[0], HenkyStrain[1], HenkyStrain[2], HenkyStrain[3], HenkyStrain[4], HenkyStrain[5]);
+
+
       for (int k = 0; k < 6; k++)
       {
         element_strain_increment[i * 6 + k] = HenkyStrain[k];
       }
 
-      //printf("\n Henky Strain: %f %f %f %f %f %f", HenkyStrain[0], HenkyStrain[1], HenkyStrain[2], HenkyStrain[3], HenkyStrain[4], HenkyStrain[5]);
-
+      
       compute_stress(element_old_stress, element_plastic_strain_eq,
                      element_plastic_strain_rate, element_yield_stress,
                      element_old_gamma, element_strain_increment, delta_T,

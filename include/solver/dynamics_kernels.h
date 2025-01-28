@@ -97,11 +97,16 @@ void update(int num_nodes, int num_elements, int ndof, T dt, Material *material,
         element_dof[k] = 0.0;
       }
 
+
       // Gather element nodes
       for (int j = 0; j < nodes_per_element; j++)
       {
         this_element_nodes[j] = element_nodes[nodes_per_element * i + j];
+        
       }
+
+      // int a;
+      // if (i>2600) std::cin >> a;
 
       // Extract element node coordinates
       Analysis::template get_element_dof<spatial_dim>(
@@ -191,7 +196,10 @@ void update(int num_nodes, int num_elements, int ndof, T dt, Material *material,
         Mr_inv[k] = 1.0 / element_mass_matrix_diagonals[k];
       }
 
-      std::cout << "element: " << i << "\n";
+      // std::cout << "element: " << i << "\n";
+      // for (int i = 0; i < 12; i++)
+      //   std::cout << "_ "<< element_xloc[i];
+      // std::cout << "\n";  
       // Compute internal (element) forces based on current configuration
       material->calculate_f_internal(
           element_xloc.data(), element_dof.data(), element_old_stress,

@@ -141,8 +141,9 @@ void test_Fuselage(bool smoke_test)
 {
   std::vector<std::string> node_set_names;
   // Load in the mesh
-  // std::string filename("../input/0.25 cube calculix linear 5758 elem.inp");
+  //std::string filename("../input/0.25 cube calculix linear 5758 elem.inp");
   std::string filename("../input/fuselage 5086 elements.inp");
+  //std::string filename("../input/fuselage 2647 elements.inp");
 
   Mesh<T, Basis::nodes_per_element> tensile;
 
@@ -177,11 +178,11 @@ void test_Fuselage(bool smoke_test)
 
   // Position and velocity in x, y, z
   T init_position[] = {0, 0, 0};
-  T init_velocity[] = {0, 0.0, -10};
+  T init_velocity[] = {0, 0.0, -5};
 
   const int normal = 1;
   std::string wall_name = "Wall";
-  T location = 0.15 - 0.00005;
+  T location = 0.15 - 10*0.00005;
   double dt = 1e-7;
   double time_end = smoke_test ? dt * 10 : 0.5;
 
@@ -328,10 +329,10 @@ int main(int argc, char *argv[])
     }
   }
 
-  test_dstrIncrement();
+  //test_dstrIncrement();
   //test_strainIncrement();
 
-  //test_Fuselage(smoke_test);
+  test_Fuselage(smoke_test);
 
   return 0;
 }

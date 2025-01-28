@@ -7,6 +7,183 @@
 #include "tetrahedral.h"
 #include "wall.h"
 
+
+//  TODO:: Implementing multiple elements per block
+template <typename T, int spatial_dim, int nodes_per_element>
+__global__ void update_multiElem(int num_elements, T dt,
+                       BaseMaterial<T, spatial_dim> *d_material,
+                       Wall<T, 2, Basis> *d_wall, const int *d_element_nodes,
+                       const T *d_vel, const T *d_global_xloc,
+                       const T *d_global_dof, T *d_global_acc, T *d_global_mass,
+                       T *d_global_strains, T *d_global_stress,
+                       const int nodes_per_elem_num_quad, const int elements_per_block,T time) {
+  int constexpr dof_per_element = spatial_dim * nodes_per_element;
+
+  int elem = blockIdx.x;
+
+  int start_element = blockIdx.x * elements_per_block;
+  // exclusive
+  int end_element = start_element + elements_per_block;
+
+  if (elem >= num_elements) return;
+
+  __shared__ T element_mass_matrix_diagonals[dof_per_element*elements_per_block];
+  __shared__ T element_xloc[dof_per_element*elements_per_block];
+  __shared__ T element_dof[dof_per_element*elements_per_block];
+  __shared__ T element_acc[dof_per_element*elements_per_block];
+  __shared__ T element_vel[dof_per_element*elements_per_block];
+  __shared__ T element_internal_forces[dof_per_element*elements_per_block];
+  __shared__ T element_strain[6 * elements_per_block]; // one integration point only
+  __shared__ T element_stress[6 * elements_per_block]; // one integration point only
+  __shared__ int this_element_nodes[nodes_per_element * elements_per_block];
+
+
+  // local thread ID.
+  int tid = threadIdx.x; 
+
+
+  //  60 threads used here.
+  if (tid < dof_per_element * elements_per_block) {
+    element_mass_matrix_diagonals[tid] = 0.0;
+    element_xloc[tid] = 0.0;
+    element_dof[tid] = 0.0;
+    element_acc[tid] = 0.0;
+    element_vel[tid] = 0.0;
+    element_internal_forces[tid] = 0.0;
+  }
+
+
+  // 30 threads used here
+  if (tid < 6 * elements_per_block) {
+    {
+      element_strain[tid] = 0.0;
+      element_stress[tid] = 0.0;
+    }
+  }
+
+
+  __syncthreads();
+
+  // Get the nodes of the 5 element of this block
+  // 25 threads used here
+  if (tid < nodes_per_element*elements_per_block) {
+
+    this_element_nodes[tid] = d_element_nodes[nodes_per_element * start_element + tid];
+  }
+  __syncthreads();
+
+  // Get the element locations
+  // TODO:: 12 threads used here
+
+  // Analysis::template get_element_dof<
+  //     Analysis::spatial_dim, Analysis::dof_per_element, Analysis::dof_per_node>(
+  //     tid, this_element_nodes, d_global_xloc, element_xloc);
+
+
+  if (tid < dof_per_element * elements_per_block)
+  {
+    element_xloc[tid] = d_global_xloc[]
+  }
+
+
+
+  // Get the element degrees of freedom
+  // TODO:: 12 threads used here
+  Analysis::template get_element_dof<
+      Analysis::spatial_dim, Analysis::dof_per_element, Analysis::dof_per_node>(
+      tid, this_element_nodes, d_global_dof, element_dof);
+
+  __syncthreads();
+  // Calculate element mass matrix
+
+  // TODO:: 12 threads used here
+  Analysis::element_mass_matrix_gpu(tid, d_material->rho, element_xloc,
+                                    element_dof, element_mass_matrix_diagonals,
+                                    nodes_per_elem_num_quad);
+
+  int node = INT_MAX;
+  int j = tid / 3;  // 0 ~ nodes_per_element - 1
+  int k = tid % 3;  // 0, 1, 2
+  // TODO:: 12 threads used here
+  if (tid < dof_per_element) {
+    node = this_element_nodes[j];
+  }
+  if (time == 0.0) {
+    // TODO:: 12 threads used here
+    if (tid < dof_per_element) {
+      atomicAdd(&d_global_mass[3 * node + k],
+                element_mass_matrix_diagonals[3 * j + k]);
+    }
+  }
+  __syncthreads();
+
+  // TODO:: 12 threads used here
+  if (tid < dof_per_element) {
+    element_mass_matrix_diagonals[tid] = 0.0;
+  }
+  __syncthreads();
+
+  // Get the element mass matrix after assembly
+  // TODO:: 12 threads used here
+  Analysis::template get_element_dof<
+      Analysis::spatial_dim, Analysis::dof_per_element, Analysis::dof_per_node>(
+      tid, this_element_nodes, d_global_mass, element_mass_matrix_diagonals);
+  __syncthreads();
+
+  T Mr_inv = 0.0;
+
+  // TODO:: 12 threads used here
+  if (tid < dof_per_element) {
+    Mr_inv = 1.0 / element_mass_matrix_diagonals[tid];
+  }
+
+  Analysis::calculate_f_internal_gpu(tid, element_xloc, element_dof,
+                                     element_internal_forces, d_material);
+  __syncthreads();
+
+  // Calculate element acceleration
+  if (tid < dof_per_element) {
+    element_acc[tid] = Mr_inv * (-element_internal_forces[tid]);
+  }
+  __syncthreads();
+
+  // assemble global acceleration
+  // TODO:: 12 threads used here
+  if (tid < dof_per_element) {
+    atomicAdd(&d_global_acc[3 * node + k], element_acc[3 * j + k]);
+  }
+  __syncthreads();
+
+  if (tid == 0) {
+    T pt[3] = {0.0, 0.0, 0.0};
+    Analysis::calculate_stress_strain(element_xloc, element_dof, pt,
+                                      element_strain, element_stress,
+                                      d_material);
+  }
+  __syncthreads();
+  // TODO:: 24 threads used here
+  if (tid < 24) {
+    int node_idx = tid / 6;  // Node index within the element (0 to 3)
+    int comp_idx = tid % 6;  // Strain/stress component index (0 to 5)
+
+    int global_node_idx = this_element_nodes[node_idx];
+
+    // Assign strain component
+    d_global_strains[global_node_idx * 6 + comp_idx] = element_strain[comp_idx];
+
+    // Assign stress component
+    d_global_stress[global_node_idx * 6 + comp_idx] = element_stress[comp_idx];
+  }
+  __syncthreads();
+}
+
+
+
+
+
+
+
+
 // Update the system states via time-stepping
 template <typename T, int spatial_dim, int nodes_per_element>
 __global__ void update(int num_elements, T dt,
@@ -33,6 +210,8 @@ __global__ void update(int num_elements, T dt,
 
   int tid = threadIdx.x;
 
+
+  // TODO:: 12 threads used here
   if (tid < dof_per_element) {
     element_mass_matrix_diagonals[tid] = 0.0;
     element_xloc[tid] = 0.0;
@@ -42,6 +221,7 @@ __global__ void update(int num_elements, T dt,
     element_internal_forces[tid] = 0.0;
   }
 
+  // TODO:: 24 threads used here
   if (tid < nodes_per_element * 6) {
     element_strain[tid] = 0.0;
     element_stress[tid] = 0.0;
@@ -50,23 +230,28 @@ __global__ void update(int num_elements, T dt,
   __syncthreads();
 
   // Get the nodes of this element
+  // TODO:: 4 threads used here
   if (tid < nodes_per_element) {
     this_element_nodes[tid] = d_element_nodes[nodes_per_element * elem + tid];
   }
   __syncthreads();
 
   // Get the element locations
+  // TODO:: 12 threads used here
   Analysis::template get_element_dof<
       Analysis::spatial_dim, Analysis::dof_per_element, Analysis::dof_per_node>(
       tid, this_element_nodes, d_global_xloc, element_xloc);
 
   // Get the element degrees of freedom
+  // TODO:: 12 threads used here
   Analysis::template get_element_dof<
       Analysis::spatial_dim, Analysis::dof_per_element, Analysis::dof_per_node>(
       tid, this_element_nodes, d_global_dof, element_dof);
 
   __syncthreads();
   // Calculate element mass matrix
+
+  // TODO:: 12 threads used here
   Analysis::element_mass_matrix_gpu(tid, d_material->rho, element_xloc,
                                     element_dof, element_mass_matrix_diagonals,
                                     nodes_per_elem_num_quad);
@@ -74,10 +259,12 @@ __global__ void update(int num_elements, T dt,
   int node = INT_MAX;
   int j = tid / 3;  // 0 ~ nodes_per_element - 1
   int k = tid % 3;  // 0, 1, 2
+  // TODO:: 12 threads used here
   if (tid < dof_per_element) {
     node = this_element_nodes[j];
   }
   if (time == 0.0) {
+    // TODO:: 12 threads used here
     if (tid < dof_per_element) {
       atomicAdd(&d_global_mass[3 * node + k],
                 element_mass_matrix_diagonals[3 * j + k]);
@@ -85,22 +272,27 @@ __global__ void update(int num_elements, T dt,
   }
   __syncthreads();
 
+  // TODO:: 12 threads used here
   if (tid < dof_per_element) {
     element_mass_matrix_diagonals[tid] = 0.0;
   }
   __syncthreads();
 
   // Get the element mass matrix after assembly
+  // TODO:: 12 threads used here
   Analysis::template get_element_dof<
       Analysis::spatial_dim, Analysis::dof_per_element, Analysis::dof_per_node>(
       tid, this_element_nodes, d_global_mass, element_mass_matrix_diagonals);
   __syncthreads();
 
   T Mr_inv = 0.0;
+
+  // TODO:: 12 threads used here
   if (tid < dof_per_element) {
     Mr_inv = 1.0 / element_mass_matrix_diagonals[tid];
   }
 
+  // TODO:: 5 threads used here
   Analysis::calculate_f_internal_gpu(tid, element_xloc, element_dof,
                                      element_internal_forces, d_material);
   __syncthreads();
@@ -112,11 +304,13 @@ __global__ void update(int num_elements, T dt,
   __syncthreads();
 
   // assemble global acceleration
+  // TODO:: 12 threads used here
   if (tid < dof_per_element) {
     atomicAdd(&d_global_acc[3 * node + k], element_acc[3 * j + k]);
   }
   __syncthreads();
 
+  // TODO:: 1 thread used here
   if (tid == 0) {
     T pt[3] = {0.0, 0.0, 0.0};
     Analysis::calculate_stress_strain(element_xloc, element_dof, pt,
@@ -124,6 +318,7 @@ __global__ void update(int num_elements, T dt,
                                       d_material);
   }
   __syncthreads();
+  // TODO:: 24 threads used here
   if (tid < 24) {
     int node_idx = tid / 6;  // Node index within the element (0 to 3)
     int comp_idx = tid % 6;  // Strain/stress component index (0 to 5)

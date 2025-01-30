@@ -66,12 +66,13 @@ class FEAnalysis {
   }
 
 #ifdef CPPIMPACT_CUDA_BACKEND
-  template <int ndof, int dof_per_element, int dof_per_node>
+  template <int ndof, int dof_per_element, int dof_per_node,
+            int elements_per_block>
   static __device__ void get_element_dof(int tid, const int nodes[],
                                          const T dof[], T element_dof[]) {
-    if (tid < dof_per_element) {
-      int j = tid / dof_per_node;
-      int k = tid % dof_per_node;
+    if (tid < dof_per_element * elements_per_block) {
+      int j = tid / (dof_per_node * elements_per_block);
+      int k = tid % (dof_per_node * elements_per_block);
       int node = nodes[j];
 
       element_dof[tid] = dof[ndof * node + k];
@@ -80,6 +81,7 @@ class FEAnalysis {
 #endif
 
 #ifdef CPPIMPACT_CUDA_BACKEND
+  template <int elements_per_block>
   static __device__ void element_mass_matrix_gpu(
       int tid, const T element_density, const T *element_xloc,
       const T *element_dof, T *element_mass_matrix_diagonals,
@@ -161,6 +163,7 @@ class FEAnalysis {
     }
   }
 
+  template <int elements_per_block>
   static __device__ void calculate_f_internal_gpu(
       int tid, const T *element_xloc, const T *element_dof, T *f_internal,
       BaseMaterial<T, dof_per_node> *material) {
@@ -234,7 +237,7 @@ class FEAnalysis {
 
       for (int detnum = 0; detnum < 5; detnum++) {
         if (dets[detnum] <= 0) {
-          printf("det[%d] = %f\n", detnum, dets[detnum]);
+          // printf("f_internal err: det[%d] = %f\n", detnum, dets[detnum]);
         }
       }
     }

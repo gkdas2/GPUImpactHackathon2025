@@ -242,8 +242,8 @@ class Dynamics {
       for (int j = 0; j < 3; ++j) {
         T value = mass_i[3 * i + j];
         if (std::isnan(value) || value < 0.0) {
-          std::cerr << "Invalid value detected in mass at node " << i
-                    << ", component " << j << std::endl;
+          // std::cerr << "Invalid value detected in mass at node " << i
+          //           << ", component " << j << std::endl;
         }
         vtkFile << value << (j < 2 ? " " : "\n");
       }

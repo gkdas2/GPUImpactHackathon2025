@@ -182,8 +182,8 @@ class Dynamics {
       for (int j = 0; j < 3; ++j) {  // Check each component of the velocity
         T value = vel_i[3 * i + j];
         if (std::isnan(value)) {
-          std::cerr << "NaN detected in velocity at node " << i
-                    << ", component " << j << std::endl;
+          // std::cerr << "NaN detected in velocity at node " << i
+          //           << ", component " << j << std::endl;
           value = 0.0;
         }
         vtkFile << value << (j < 2 ? " " : "\n");
@@ -211,8 +211,8 @@ class Dynamics {
       for (int j = 0; j < 3; ++j) {
         T value = acc_i[3 * i + j];
         if (std::isnan(value)) {
-          std::cerr << "NaN detected in acceleration at node " << i
-                    << ", component " << j << std::endl;
+          // std::cerr << "NaN detected in acceleration at node " << i
+          //           << ", component " << j << std::endl;
           value = 0.0;
         }
         vtkFile << value << (j < 2 ? " " : "\n");
@@ -224,8 +224,8 @@ class Dynamics {
       for (int j = 0; j < 3; ++j) {
         T value = mass_i[3 * i + j];
         if (std::isnan(value) || value < 0.0) {
-          std::cerr << "Invalid value detected in mass at node " << i
-                    << ", component " << j << std::endl;
+          // std::cerr << "Invalid value detected in mass at node " << i
+          //           << ", component " << j << std::endl;
         }
         vtkFile << value << (j < 2 ? " " : "\n");
       }
@@ -460,8 +460,10 @@ class Dynamics {
           <<<ndof_blocks, 32, 0, streams[0]>>>(ndof, dt, d_vel, d_global_dof);
       cudaStreamSynchronize(streams[0]);
 
-      update<T, spatial_dim, nodes_per_element>
-          <<<mesh->num_elements, threads_per_block, 0, streams[0]>>>(
+      constexpr int elems_per_block = 10;
+      update<T, spatial_dim, nodes_per_element, elems_per_block>
+          <<<mesh->num_elements / elems_per_block,
+             threads_per_block * elems_per_block, 0, streams[0]>>>(
               mesh->num_elements, dt, d_material, d_wall, d_element_nodes,
               d_vel, d_global_xloc, d_global_dof, d_global_acc, d_global_mass,
               d_global_strains, d_global_stress, nodes_per_elem_num_quad, time);

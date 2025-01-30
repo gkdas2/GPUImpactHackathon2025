@@ -51,6 +51,7 @@ int main(int argc, char *argv[]) {
   // Load in the mesh
   // std::string filename("../input/0.25 cube calculix linear 5758 elem.inp");
   std::string filename("../input/fuselage 5086 elements.inp");
+  // std::string filename("../input/fuselage 5086 elements.inp");
 
   Mesh<T, Basis::nodes_per_element> tensile;
 
@@ -82,7 +83,6 @@ int main(int argc, char *argv[]) {
   T location = 0.15 - 0.00005;
   double dt = 1e-7;
   double time_end = smoke_test ? dt * 10 : 0.5;
-  //double time_end = dt*10;
 
   int export_interval = INT_MAX;
 #ifdef CPPIMPACT_DEBUG_MODE
